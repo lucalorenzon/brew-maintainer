@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*" # Triggers on tags like v1.0.0, v1.1.2, etc.
+
+permissions:
+  contents: write # Required to create releases and push to tap repo
+
+jobs:
+  build-release:
+    name: Build and Create Release
+    runs-on: macos-latest # Build natively for macOS (x86_64)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Prepare tarball
+        run: |
+          mkdir -p dist
+          cp target/release/brew-maintainer dist/
+          VERSION=${GITHUB_REF_NAME}
+          tar -czvf brew-maintainer-${VERSION}-x86_64-macos.tar.gz -C dist brew-maintainer
+          shasum -a 256 brew-maintainer-${VERSION}-x86_64-macos.tar.gz > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: |
+            brew-maintainer-${{ github.ref_name }}-x86_64-macos.tar.gz
+            SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-formula:
+    name: Update Homebrew Formula
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: lucalorenzon/homebrew-tap
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release-assets
+        if: false # We already have SHA file from previous job (optional safeguard)
+
+      - name: Fetch SHA256 and update formula
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          URL="https://github.com/lucalorenzon/brew-maintainer/archive/${VERSION}.tar.gz"
+          SHA=$(awk '{print $1}' ../brew-maintainer/SHA256SUMS.txt || true)
+
+          if [ -z "$SHA" ]; then
+            echo "Error: SHA256 not found!"
+            exit 1
+          fi
+
+          sed -i "s|url \".*\"|url \"${URL}\"|" Formula/brew-maintainer.rb
+          sed -i "s|sha256 \".*\"|sha256 \"${SHA}\"|" Formula/brew-maintainer.rb
+
+      - name: Commit and push formula update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/brew-maintainer.rb
+          git commit -m "Update brew-maintainer formula to ${GITHUB_REF_NAME}"
+          git push origin main
