@@ -3,15 +3,15 @@ name: Release
 on:
   push:
     tags:
-      - "v*" # Triggers on tags like v1.0.0, v1.1.2, etc.
+      - "v*"
 
 permissions:
-  contents: write # Required to create releases and push to tap repo
+  contents: write
 
 jobs:
   build-release:
     name: Build and Create Release
-    runs-on: macos-latest # Build natively for macOS (x86_64)
+    runs-on: macos-latest
 
     steps:
       - name: Checkout code
@@ -23,13 +23,19 @@ jobs:
       - name: Build release binary
         run: cargo build --release
 
-      - name: Prepare tarball
+      - name: Prepare tarball and checksum
         run: |
           mkdir -p dist
           cp target/release/brew-maintainer dist/
           VERSION=${GITHUB_REF_NAME}
           tar -czvf brew-maintainer-${VERSION}-x86_64-macos.tar.gz -C dist brew-maintainer
           shasum -a 256 brew-maintainer-${VERSION}-x86_64-macos.tar.gz > SHA256SUMS.txt
+
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sha256sum
+          path: SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -46,6 +52,7 @@ jobs:
     name: Update Homebrew Formula
     needs: build-release
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@v4
@@ -54,17 +61,16 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
 
-      - name: Download release assets
+      - name: Download checksum artifact
         uses: actions/download-artifact@v4
         with:
-          path: ./release-assets
-        if: false # We already have SHA file from previous job (optional safeguard)
+          name: sha256sum
 
-      - name: Fetch SHA256 and update formula
+      - name: Update formula
         run: |
           VERSION=${GITHUB_REF_NAME}
           URL="https://github.com/lucalorenzon/brew-maintainer/archive/${VERSION}.tar.gz"
-          SHA=$(awk '{print $1}' ../brew-maintainer/SHA256SUMS.txt || true)
+          SHA=$(awk '{print $1}' SHA256SUMS.txt)
 
           if [ -z "$SHA" ]; then
             echo "Error: SHA256 not found!"
