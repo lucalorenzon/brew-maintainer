@@ -64,7 +64,7 @@ jobs:
           cd ../homebrew-tap
 
           # Get SHA
-          SHA=$(cat ../${REPO_NAME}/dist/SHA256SUMS.txt)
+          SHA=$(cat ../${REPO_NAME}/SHA256SUMS.txt)
           if [ -z "$SHA" ]; then
             echo "Error: SHA256 not found!"
             exit 1
