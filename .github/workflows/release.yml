@@ -31,8 +31,7 @@ jobs:
           VERSION=${GITHUB_REF_NAME}
           mkdir -p dist
           cp target/x86_64-apple-darwin/release/brew-maintainer dist/
-          cd dist
-          tar -czf brew-maintainer-${VERSION}-x86_64-macos.tar.gz brew-maintainer
+          tar -czf brew-maintainer-${VERSION}-x86_64-macos.tar.gz -C dist brew-maintainer
           shasum -a 256 brew-maintainer-${VERSION}-x86_64-macos.tar.gz | awk '{print $1}' > SHA256SUMS.txt
 
       - name: Upload checksum artifact
