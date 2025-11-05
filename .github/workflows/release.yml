@@ -51,17 +51,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: lucalorenzon/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          persist-credentials: true
+
       - name: Update Homebrew Tap Formula
         run: |
           set -e
           VERSION=${GITHUB_REF_NAME}
           OWNER=${GITHUB_REPOSITORY_OWNER}
+          TAP_REPO="homebrew-tap"
           REPO_NAME=$(basename $GITHUB_REPOSITORY)
           BIN_NAME="brew-maintainer"
 
-          # Clone the tap repo
-          git clone https://github.com/${OWNER}/homebrew-tap.git ../homebrew-tap
-          cd ../homebrew-tap
+          TEMPLATE_FILE="../${REPO_NAME}/Formula/${REPO_NAME}.rb"
+          TARGET_DIR="./Formula"
+          TARGET_FILE="${TARGET_DIR}/${REPO_NAME}.rb"
 
           # Get SHA
           SHA=$(cat ../${REPO_NAME}/SHA256SUMS.txt)
@@ -80,8 +88,8 @@ jobs:
           echo "  SHA: ${SHA}"
 
           # Copy the template from main repo and replace placeholders
-          mkdir -p Formula
-          cp ../${REPO_NAME}/FormulaTemplate/brew-maintainer.rb Formula/brew-maintainer.rb
+          mkdir -p "${TARGET_DIR}"
+          cp "${TEMPLATE_FILE}" "${TARGET_FILE}"
 
           SED_CMD="sed"
           if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -90,15 +98,16 @@ jobs:
             SED_CMD="sed -i"
           fi
 
-          $SED_CMD "s|https://github.com/<REPLACED_BY_GITHUB_ACTION>|${BASE_URL}|" Formula/brew-maintainer.rb
-          $SED_CMD "s|version \"<REPLACED_BY_GITHUB_ACTION>\"|version \"${VERSION#v}\"|" Formula/brew-maintainer.rb
-          $SED_CMD "s|url \"<REPLACED_BY_GITHUB_ACTION>\"|url \"${DOWNLOAD_URL}\"|" Formula/brew-maintainer.rb
-          $SED_CMD "s|sha256 \"<REPLACED_BY_GITHUB_ACTION>\"|sha256 \"${SHA}\"|" Formula/brew-maintainer.rb
-          $SED_CMD "s|com.<REPLACED_BY_GITHUB_ACTION>.brew-maintainer|com.${OWNER}.brew-maintainer|" Formula/brew-maintainer.rb
+          $SED_CMD "s|https://github.com/<REPLACED_BY_GITHUB_ACTION>|${BASE_URL}|" "${TARGET_FILE}"
+          $SED_CMD "s|version \"<REPLACED_BY_GITHUB_ACTION>\"|version \"${VERSION#v}\"|" "${TARGET_FILE}"
+          $SED_CMD "s|url \"<REPLACED_BY_GITHUB_ACTION>\"|url \"${DOWNLOAD_URL}\"|" "${TARGET_FILE}"
+          $SED_CMD "s|sha256 \"<REPLACED_BY_GITHUB_ACTION>\"|sha256 \"${SHA}\"|" "${TARGET_FILE}"
+          $SED_CMD "s|com.<REPLACED_BY_GITHUB_ACTION>.brew-maintainer|com.${OWNER}.brew-maintainer|" "${TARGET_FILE}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add Formula/brew-maintainer.rb
-          git commit -m "Update brew-maintainer formula to ${VERSION}"
+          git add "${TARGET_FILE}"
+          git commit -m "Update ${REPO_NAME} formula to ${VERSION}" || echo "No changes to commit."
           git push origin main
+        working-directory: ../homebrew-tap
