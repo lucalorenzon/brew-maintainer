@@ -75,7 +75,7 @@ jobs:
           BIN_NAME="brew-maintainer"
 
           # Get the SHA256 from your built file
-          SHA=$(awk '{print $1}' ../${REPO_NAME}/dist/SHA256SUMS.txt)
+          SHA=$(awk '{print $1}' SHA256SUMS.txt)
           if [ -z "$SHA" ]; then
             echo "Error: SHA256 not found!"
             exit 1
