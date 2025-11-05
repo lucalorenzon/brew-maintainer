@@ -20,16 +20,21 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build release binary
-        run: cargo build --release
+      - name: Add macOS x86_64 target
+        run: rustup target add x86_64-apple-darwin
 
-      - name: Prepare tarball and checksum
+      - name: Build release binary
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Prepare release artifact
         run: |
-          mkdir -p dist
-          cp target/release/brew-maintainer dist/
           VERSION=${GITHUB_REF_NAME}
-          tar -czvf brew-maintainer-${VERSION}-x86_64-macos.tar.gz -C dist brew-maintainer
-          shasum -a 256 brew-maintainer-${VERSION}-x86_64-macos.tar.gz > SHA256SUMS.txt
+          mkdir -p dist
+          cp target/x86_64-apple-darwin/release/brew-maintainer dist/
+          cd dist
+          tar -czf brew-maintainer-${VERSION}-x86_64-macos.tar.gz brew-maintainer
+          shasum -a 256 brew-maintainer-${VERSION}-x86_64-macos.tar.gz | awk '{print $1}' > SHA256SUMS.txt
+          cd ..
 
       - name: Upload checksum artifact
         uses: actions/upload-artifact@v4
