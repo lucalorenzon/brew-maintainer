@@ -110,4 +110,3 @@ jobs:
           git add "${TARGET_FILE}"
           git commit -m "Update ${REPO_NAME} formula to ${VERSION}" || echo "No changes to commit."
           git push origin main
-        working-directory: ../homebrew-tap
