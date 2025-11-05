@@ -34,7 +34,6 @@ jobs:
           cd dist
           tar -czf brew-maintainer-${VERSION}-x86_64-macos.tar.gz brew-maintainer
           shasum -a 256 brew-maintainer-${VERSION}-x86_64-macos.tar.gz | awk '{print $1}' > SHA256SUMS.txt
-          cd ..
 
       - name: Upload checksum artifact
         uses: actions/upload-artifact@v4
