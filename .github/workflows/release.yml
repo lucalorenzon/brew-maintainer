@@ -127,4 +127,14 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/brew-maintainer.rb
           git commit -m "Update brew-maintainer formula to ${GITHUB_REF_NAME}" || echo "No changes to commit."
+
+          # ensure git has valid credentials in this job
+          git config --global credential.helper store
+          git config --global credential.useHttpPath true
+          echo "https://${GITHUB_ACTOR}:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com" > ~/.git-credentials
+
+          # guarantee the remote uses https (not ssh)
+          git remote set-url origin "https://github.com/${OWNER}/${TAP_REPO}.git"
+
+          # now safe to push
           git push origin main
