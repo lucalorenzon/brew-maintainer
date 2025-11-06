@@ -68,7 +68,7 @@ jobs:
           REPO_NAME="brew-maintainer"
           TAP_DIR="../homebrew-tap"
 
-          TEMPLATE_FILE="FormulaTemplate/.rb"     # template in main repo
+          TEMPLATE_FILE="FormulaTemplate/${REPO_NAME}.rb"     # template in main repo
           TARGET_DIR="${TAP_DIR}/Formula"
           TARGET_FILE="${TARGET_DIR}/${REPO_NAME}.rb"
 
