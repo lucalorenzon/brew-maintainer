@@ -34,11 +34,11 @@ jobs:
           tar -czf brew-maintainer-${VERSION}-x86_64-macos.tar.gz -C dist brew-maintainer
           shasum -a 256 brew-maintainer-${VERSION}-x86_64-macos.tar.gz | awk '{print $1}' > SHA256SUMS.txt
 
-      - name: Upload checksum artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sha256sum
-          path: SHA256SUMS.txt
+      # - name: Upload checksum artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: sha256sum
+      #     path: SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -57,8 +57,10 @@ jobs:
           repository: lucalorenzon/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           persist-credentials: true
+          working-directory: ../homebrew-tap
 
       - name: Update Homebrew Tap Formula
+        working-directory: ./brew-maintainer
         run: |
           set -e
           VERSION=${GITHUB_REF_NAME}
@@ -70,6 +72,8 @@ jobs:
           TEMPLATE_FILE="../${REPO_NAME}/Formula/${REPO_NAME}.rb"
           TARGET_DIR="./Formula"
           TARGET_FILE="${TARGET_DIR}/${REPO_NAME}.rb"
+
+          echo "$(pwd)"
 
           # Get SHA
           SHA=$(cat ../${REPO_NAME}/SHA256SUMS.txt)
