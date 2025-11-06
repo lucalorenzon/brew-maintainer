@@ -25,14 +25,31 @@ jobs:
           echo "OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)" >> $GITHUB_ENV
           echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
 
-      # Build your Rust binary
-      - name: Build Rust binary
+      - name: Install Rust targets
         run: |
-          cargo build --release
-          mkdir -p dist
-          cp target/release/brew-maintainer dist/
+          rustup target add x86_64-apple-darwin
+          rustup target add aarch64-apple-darwin
 
-      # Create SHA256 checksum
+      # Build for both Intel and Apple Silicon
+      - name: Build multi-arch binaries
+        run: |
+          set -e
+          mkdir -p dist
+
+          echo "🏗 Building for x86_64..."
+          cargo build --release --target x86_64-apple-darwin
+          echo "🏗 Building for arm64..."
+          cargo build --release --target aarch64-apple-darwin
+
+          # Merge into universal (fat) binary
+          echo "🔗 Creating universal binary..."
+          lipo -create -output dist/brew-maintainer \
+            target/x86_64-apple-darwin/release/brew-maintainer \
+            target/aarch64-apple-darwin/release/brew-maintainer
+
+          chmod +x dist/brew-maintainer
+
+      # Generate checksum for the universal binary
       - name: Generate SHA256SUMS
         run: |
           cd dist
