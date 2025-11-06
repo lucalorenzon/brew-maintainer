@@ -119,7 +119,7 @@ jobs:
       - name: Commit and push updated formula to tap
         env:
           TAP_REPO: homebrew-tap
-          OWNER: myuser
+          OWNER: lucalorenzon
           VERSION: ${{ github.ref_name }}
           GITHUB_ACTOR: ${{ github.actor }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
