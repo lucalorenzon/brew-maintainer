@@ -45,7 +45,7 @@ jobs:
           mkdir -p dist
           cp FormulaTemplate/brew-maintainer.rb dist/brew-maintainer.rb
 
-          URL="https://github.com/${OWNER}/${REPO_NAME}/archive/${VERSION}.tar.gz"
+          URL="https://github.com/${OWNER}/${REPO_NAME}/releases/download/${VERSION}/brew-maintainer"
           SHA=$(awk '{print $1}' dist/SHA256SUMS.txt)
 
           # Replace placeholders inside the formula template
