@@ -14,7 +14,9 @@ class BrewMaintainer < Formula
 
   service do
     run [opt_bin/"brew-maintainer"]
-    keep_alive true
+    run_at_load true
+    keep_alive false
+    interval 21600  # 6 hours = 21600 seconds
     log_path var/"log/brew-maintainer.log"
     error_log_path var/"log/brew-maintainer.err.log"
     working_dir var
