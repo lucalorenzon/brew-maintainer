@@ -1,22 +1,49 @@
-// src/main.rs
-use chrono::Local;
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::fs::{self};
 use std::process::Command;
+use tracing::info;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{EnvFilter, fmt};
+
+fn init_logging() {
+    // Choose log directory (works for both architectures)
+    let log_dir = if fs::metadata("/opt/homebrew/var/log").is_ok() {
+        "/opt/homebrew/var/log"
+    } else {
+        "/usr/local/var/log"
+    };
+
+    // let log_path = format!("{}/brew-maintainer.log", log_dir);
+
+    // Make sure directory exists
+    let _ = fs::create_dir_all(log_dir);
+
+    // Initialize tracing subscriber
+    let file_appender = tracing_appender::rolling::daily(log_dir, "brew-maintainer.log");
+    let (file_writer, _guard) = tracing_appender::non_blocking(file_appender);
+
+    let stdout_layer = fmt::layer().with_target(false).with_writer(std::io::stdout);
+    let file_layer = fmt::layer()
+        .with_target(false)
+        .with_ansi(false)
+        .with_writer(file_writer);
+
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    // keep guard alive for the life of the program
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(stdout_layer)
+        .with(file_layer)
+        .init();
+
+    info!("brew-maintainer logging initialized");
+}
 
 fn main() {
-    let timestamp = Local::now();
-    let log_file = format!(
-        "/usr/local/var/log/brew-maintainer-{}.log",
-        timestamp.format("%Y%m%d-%H%M%S")
-    );
-    let mut log = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_file)
-        .unwrap();
+    init_logging();
 
-    writeln!(log, "=== Brew Maintenance Run at {} ===", timestamp).unwrap();
+    info!("=== Brew Maintenance Started ===>|");
 
     let steps = [
         ("brew update", vec!["update"]),
@@ -25,26 +52,24 @@ fn main() {
     ];
 
     for (desc, args) in steps {
-        writeln!(log, "\nRunning: brew {}", args.join(" ")).unwrap();
+        info!("Running: brew {}", args.join(" "));
         let output = Command::new("brew").args(args).output();
 
         match output {
             Ok(out) => {
                 if !out.status.success() {
-                    writeln!(
-                        log,
+                    info!(
                         "❌ Step `{}` failed.\nError:\n{}",
                         desc,
                         String::from_utf8_lossy(&out.stderr)
-                    )
-                    .unwrap();
+                    );
                 } else {
-                    writeln!(log, "✅ Step `{}` completed.", desc).unwrap();
+                    info!("✅ Step `{}` completed.", desc);
                 }
             }
-            Err(e) => writeln!(log, "⚠️  Failed to run `{}`: {}", desc, e).unwrap(),
+            Err(e) => info!("⚠️  Failed to run `{}`: {}", desc, e),
         }
     }
 
-    writeln!(log, "\nRun complete. Log saved at {}", log_file).unwrap();
+    info!("|<============= Run complete.");
 }
