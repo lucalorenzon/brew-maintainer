@@ -18,6 +18,7 @@ class BrewMaintainer < Formula
     log_path var/"log/brew-maintainer.log"
     error_log_path var/"log/brew-maintainer.err.log"
     working_dir var
+    environment_variables PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
   end
 
   def caveats
