@@ -54,13 +54,15 @@ jobs:
 
           echo "Cloning https://github.com/${OWNER}/${TAP_REPO}.git"
           git clone "https://github.com/${OWNER}/${TAP_REPO}.git" ../${TAP_REPO}
+          echo "pwd: $(pwd)"
           ls -la ../${TAP_REPO}
 
       # 5️⃣ Update the Homebrew formula dynamically
       - name: Update Homebrew Tap Formula
         run: |
           set -e
-
+          echo "pwd: $(pwd)"
+          ls -la
           VERSION="${GITHUB_REF_NAME}"                 # e.g. v0.1.5
           OWNER="lucalorenzon"                        # tap owner
           REPO_NAME="brew-maintainer"
