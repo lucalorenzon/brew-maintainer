@@ -3,114 +3,126 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "v*.*.*"
 
 permissions:
   contents: write
 
 jobs:
-  build-release:
-    name: Build and Create Release
-    runs-on: macos-latest
+  release:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      # 1️⃣ Checkout your main repository
+      - name: Checkout main repository
         uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Add macOS x86_64 target
-        run: rustup target add x86_64-apple-darwin
-
-      - name: Build release binary
-        run: cargo build --release --target x86_64-apple-darwin
-
-      - name: Prepare release artifact
+      # 2️⃣ Build and package your Rust binary
+      - name: Build and package binary
         run: |
-          VERSION=${GITHUB_REF_NAME}
+          set -e
+          cargo build --release
           mkdir -p dist
-          cp target/x86_64-apple-darwin/release/brew-maintainer dist/
-          tar -czf brew-maintainer-${VERSION}-x86_64-macos.tar.gz -C dist brew-maintainer
-          shasum -a 256 brew-maintainer-${VERSION}-x86_64-macos.tar.gz | awk '{print $1}' > SHA256SUMS.txt
+          cp target/release/brew-maintainer dist/
+          cd dist
+          VERSION="${GITHUB_REF_NAME}"
+          TAR="brew-maintainer-${VERSION}-x86_64-macos.tar.gz"
+          tar -czf "${TAR}" brew-maintainer
+          shasum -a 256 "${TAR}" > SHA256SUMS.txt
 
-      # - name: Upload checksum artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: sha256sum
-      #     path: SHA256SUMS.txt
-
+      # 3️⃣ Create GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
-          files: |
-            brew-maintainer-${{ github.ref_name }}-x86_64-macos.tar.gz
-            SHA256SUMS.txt
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout tap repository
-        uses: actions/checkout@v4
-        with:
-          repository: lucalorenzon/homebrew-tap
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          persist-credentials: true
-          working-directory: ../homebrew-tap
+      # 4️⃣ Clone the tap repository manually using PAT
+      - name: Configure Git credentials
+        run: |
+          git config --global credential.helper store
+          git config --global credential.useHttpPath true
+          echo "https://${GITHUB_ACTOR}:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com" > ~/.git-credentials
 
+      - name: Clone homebrew-tap repository
+        run: |
+          set -
+          OWNER="lucalorenzon"
+          TAP_REPO="homebrew-tap"
+
+          echo "Cloning https://github.com/${OWNER}/${TAP_REPO}.git"
+          git clone "https://github.com/${OWNER}/${TAP_REPO}.git" ../${TAP_REPO}
+          ls -la ../${TAP_REPO}
+
+      # 5️⃣ Update the Homebrew formula dynamically
       - name: Update Homebrew Tap Formula
-        working-directory: ./brew-maintainer
         run: |
           set -e
-          VERSION=${GITHUB_REF_NAME}
-          OWNER=${GITHUB_REPOSITORY_OWNER}
-          TAP_REPO="homebrew-tap"
-          REPO_NAME=$(basename $GITHUB_REPOSITORY)
-          BIN_NAME="brew-maintainer"
 
-          TEMPLATE_FILE="../${REPO_NAME}/Formula/${REPO_NAME}.rb"
-          TARGET_DIR="./Formula"
+          VERSION="${GITHUB_REF_NAME}"                 # e.g. v0.1.5
+          OWNER="lucalorenzon"                        # tap owner
+          REPO_NAME="brew-maintainer"
+          TAP_DIR="../homebrew-tap"
+
+          TEMPLATE_FILE="Formula/${REPO_NAME}.rb"     # template in main repo
+          TARGET_DIR="${TAP_DIR}/Formula"
           TARGET_FILE="${TARGET_DIR}/${REPO_NAME}.rb"
 
-          echo "$(pwd)"
+          echo "Updating formula for ${REPO_NAME} -> ${VERSION}"
 
-          # Get SHA
-          SHA=$(cat ../${REPO_NAME}/SHA256SUMS.txt)
+          mkdir -p "${TARGET_DIR}"
+
+          # compute download URL and SHA
+          DOWNLOAD_URL="https://github.com/${OWNER}/${REPO_NAME}/releases/download/${VERSION}/${REPO_NAME}-${VERSION}-x86_64-macos.tar.gz"
+          SHA=$(awk '{print $1}' dist/SHA256SUMS.txt || true)
+
           if [ -z "$SHA" ]; then
-            echo "Error: SHA256 not found!"
+            echo "❌ Error: SHA256 not found!"
             exit 1
           fi
 
-          BASE_URL="https://github.com/${OWNER}/${REPO_NAME}"
-          DOWNLOAD_URL="${BASE_URL}/releases/download/${VERSION}/${BIN_NAME}-${VERSION}-x86_64-macos.tar.gz"
+          echo "Download URL: ${DOWNLOAD_URL}"
+          echo "SHA: ${SHA}"
 
-          echo "🔗 Updating formula with:"
-          echo "  Version: ${VERSION}"
-          echo "  Owner: ${OWNER}"
-          echo "  URL: ${DOWNLOAD_URL}"
-          echo "  SHA: ${SHA}"
-
-          # Copy the template from main repo and replace placeholders
-          mkdir -p "${TARGET_DIR}"
+          # copy template into tap
           cp "${TEMPLATE_FILE}" "${TARGET_FILE}"
 
-          SED_CMD="sed"
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            SED_CMD="sed -i ''"
-          else
-            SED_CMD="sed -i"
-          fi
+          # portable sed replacement helper (works on macOS and Linux)
+          replace() {
+            local SEARCH="$1" ; local REPL="$2" ; local FILE="$3"
+            # escape slashes in replacement for safe sed substitution
+            local SAFE_REPL
+            SAFE_REPL=$(printf '%s' "$REPL" | sed -e 's/[\/&]/\\&/g')
+            if [ "$(uname -s)" = "Darwin" ]; then
+              sed -i '' -e "s|${SEARCH}|${SAFE_REPL}|g" "$FILE"
+            else
+              sed -i -e "s|${SEARCH}|${SAFE_REPL}|g" "$FILE"
+            fi
+          }
 
-          $SED_CMD "s|https://github.com/<REPLACED_BY_GITHUB_ACTION>|${BASE_URL}|" "${TARGET_FILE}"
-          $SED_CMD "s|version \"<REPLACED_BY_GITHUB_ACTION>\"|version \"${VERSION#v}\"|" "${TARGET_FILE}"
-          $SED_CMD "s|url \"<REPLACED_BY_GITHUB_ACTION>\"|url \"${DOWNLOAD_URL}\"|" "${TARGET_FILE}"
-          $SED_CMD "s|sha256 \"<REPLACED_BY_GITHUB_ACTION>\"|sha256 \"${SHA}\"|" "${TARGET_FILE}"
-          $SED_CMD "s|com.<REPLACED_BY_GITHUB_ACTION>.brew-maintainer|com.${OWNER}.brew-maintainer|" "${TARGET_FILE}"
+          # perform all necessary substitutions (exact placeholder strings from your template)
+          replace 'https://github.com/<REPLACED_BY_GITHUB_ACTION>' "https://github.com/${OWNER}/${REPO_NAME}" "${TARGET_FILE}"
+          replace 'version "<REPLACED_BY_GITHUB_ACTION>"' "version \"${VERSION#v}\"" "${TARGET_FILE}"
+          replace 'url "<REPLACED_BY_GITHUB_ACTION>"' "url \"${DOWNLOAD_URL}\"" "${TARGET_FILE}"
+          replace 'sha256 "<REPLACED_BY_GITHUB_ACTION>"' "sha256 \"${SHA}\"" "${TARGET_FILE}"
+          replace 'com.<REPLACED_BY_GITHUB_ACTION>.brew-maintainer' "com.${OWNER}.brew-maintainer" "${TARGET_FILE}"
 
+          echo "✅ Replacements applied in ${TARGET_FILE}:"
+          sed -n '1,200p' "${TARGET_FILE}"
+        working-directory: ./ # working dir is repo root where 'dist/' and 'Formula/' (template) reside
+
+      # 6️⃣ Commit and push to tap repo
+      - name: Commit and push changes
+        run: |
+          set -e
+          OWNER="lucalorenzon"
+          TAP_REPO="homebrew-tap"
+
+          cd ../${TAP_REPO}
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add "${TARGET_FILE}"
-          git commit -m "Update ${REPO_NAME} formula to ${VERSION}" || echo "No changes to commit."
+          git add Formula/brew-maintainer.rb
+          git commit -m "Update brew-maintainer formula to ${GITHUB_REF_NAME}" || echo "No changes to commit."
           git push origin main
