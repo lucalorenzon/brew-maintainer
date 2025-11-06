@@ -43,7 +43,7 @@ jobs:
       - name: Prepare Homebrew formula
         run: |
           mkdir -p dist
-          cp Formula/brew-maintainer.rb dist/brew-maintainer.rb
+          cp FormulaTemplate/brew-maintainer.rb dist/brew-maintainer.rb
 
           URL="https://github.com/${OWNER}/${REPO_NAME}/archive/${VERSION}.tar.gz"
           SHA=$(awk '{print $1}' dist/SHA256SUMS.txt)
