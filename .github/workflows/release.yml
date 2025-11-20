@@ -23,7 +23,7 @@ jobs:
         run: |
           echo "REPO_NAME=$(basename $GITHUB_REPOSITORY)" >> $GITHUB_ENV
           echo "OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)" >> $GITHUB_ENV
-          echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Install Rust targets
         run: |
@@ -62,7 +62,7 @@ jobs:
           mkdir -p dist
           cp FormulaTemplate/brew-maintainer.rb dist/brew-maintainer.rb
 
-          URL="https://github.com/${OWNER}/${REPO_NAME}/releases/download/${VERSION}/brew-maintainer"
+          URL="https://github.com/${OWNER}/${REPO_NAME}/releases/download/v${VERSION}/brew-maintainer"
           SHA=$(awk '{print $1}' dist/SHA256SUMS.txt)
 
           # Replace placeholders inside the formula template

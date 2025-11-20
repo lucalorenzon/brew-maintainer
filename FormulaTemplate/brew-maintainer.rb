@@ -1,8 +1,8 @@
 class BrewMaintainer < Formula
   desc "Automated Homebrew maintenance tool (update, upgrade, cleanup with logs)"
   homepage "https://github.com/<REPLACED_BY_GITHUB_ACTION>"
-  version "<REPLACED_BY_GITHUB_ACTION>"
   url "<REPLACED_BY_GITHUB_ACTION>"
+  version "<REPLACED_BY_GITHUB_ACTION>"
   sha256 "<REPLACED_BY_GITHUB_ACTION>"
   license "MIT"
 
@@ -14,47 +14,16 @@ class BrewMaintainer < Formula
 
   service do
     run [opt_bin/"brew-maintainer"]
-    run_at_load true
     run_type :interval
-    keep_alive false
     interval 21600  # 6 hours = 21600 seconds
     log_path var/"log/brew-maintainer.log"
     error_log_path var/"log/brew-maintainer.err.log"
     working_dir var
-    environment_variables PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+    environment_variables(
+      HOME => ENV[“HOME"],
+      PATH => std_service_path_env
+    )
   end
-
-  def plist
-      <<~PLIST
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-          <dict>
-            <key>Label</key>
-            <string>#{plist_name}</string>
-            <key>ProgramArguments</key>
-            <array>
-              <string>#{opt_bin}/brew-maintainer</string>
-            </array>
-            <key>StartInterval</key>
-            <integer>21600</integer>
-            <key>RunAtLoad</key>
-            <true/>
-            <key>WorkingDirectory</key>
-            <string>#{var}</string>
-            <key>StandardOutPath</key>
-            <string>#{var}/log/brew-maintainer.log</string>
-            <key>StandardErrorPath</key>
-            <string>#{var}/log/brew-maintainer.err.log</string>
-            <key>EnvironmentVariables</key>
-            <dict>
-              <key>PATH</key>
-              <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
-            </dict>
-          </dict>
-        </plist>
-        PLIST
-    end
 
   def caveats
     <<~DESC
