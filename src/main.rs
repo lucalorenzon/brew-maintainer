@@ -13,21 +13,19 @@ use anyhow::Result;
 use chrono::Local;
 use tracing::info;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     init_logging();
     let start_time = Local::now();
     info!("=== Brew Maintenance Started at {} ===>|", start_time);
-    let command = BrewMaintainer::new(RealBrewCommand);
+    let command = BrewMaintainer::new(&RealBrewCommand);
 
-    match run_maintenance(&command) {
+    match run_maintenance(&command).await {
         Ok(_) => info!("|<============= Run complete."),
         Err(e) => info!("|<============= Run failed: {}", e),
     }
     let end_time = Local::now();
     let duration = end_time - start_time;
-    info!(
-        "=== Brew Maintenance Finished at {} taking {} ===>|",
-        end_time, duration
-    );
+    info!("=== Brew Maintenance Finished at {} taking {} ===>|", end_time, duration);
     Ok(())
 }

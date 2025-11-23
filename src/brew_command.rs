@@ -1,22 +1,14 @@
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
+use chrono::Duration;
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BrewCommand<'a> {
-    Update {
-        envs: HashMap<&'static str, String>,
-    },
-    Outdated {
-        envs: HashMap<&'static str, String>,
-    },
-    Upgrade {
-        packages: Vec<&'a str>,
-        envs: HashMap<&'static str, String>,
-    },
-    Cleanup {
-        envs: HashMap<&'static str, String>,
-    },
+    Update { envs: HashMap<&'static str, String> },
+    Outdated { envs: HashMap<&'static str, String> },
+    Upgrade { package_name: &'a str, envs: HashMap<&'static str, String> },
+    Cleanup { envs: HashMap<&'static str, String> },
 }
 
 impl<'a> BrewCommand<'a> {
@@ -29,11 +21,9 @@ impl<'a> BrewCommand<'a> {
             BrewCommand::Outdated { envs: _ } => {
                 vec!["outdated", "--json"]
             }
-            BrewCommand::Upgrade { packages, envs: _ } => {
+            BrewCommand::Upgrade { package_name, envs: _ } => {
                 let mut args = vec!["upgrade"];
-                for &package_name in packages {
-                    args.push(package_name);
-                }
+                args.push(package_name);
                 args
             }
             BrewCommand::Cleanup { envs: _ } => {
@@ -46,7 +36,7 @@ impl<'a> BrewCommand<'a> {
         match self {
             BrewCommand::Update { envs } => envs.clone(),
             BrewCommand::Outdated { envs } => envs.clone(),
-            BrewCommand::Upgrade { packages: _, envs } => envs.clone(),
+            BrewCommand::Upgrade { package_name: _, envs } => envs.clone(),
             BrewCommand::Cleanup { envs } => envs.clone(),
         }
     }
@@ -56,9 +46,14 @@ impl<'a> BrewCommand<'a> {
 pub enum BrewError {
     #[error("Error executing the brew command")]
     ExecutionFailed(String),
+    #[error("Error Input request cannot be fulfilled")]
+    InputRequested,
+    #[error("Error command takes more than the timeout requested")]
+    Timeout,
 }
 
 pub trait CommandExecutor {
     fn execute(&self, cmd: &BrewCommand) -> Result<String, BrewError>;
     fn envs(&self) -> HashMap<&'static str, String>;
+    async fn execute_with_timeout<'a>(&self, cmd: &BrewCommand<'a>, timeout: Duration) -> Result<(), BrewError>;
 }

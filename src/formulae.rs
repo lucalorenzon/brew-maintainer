@@ -2,12 +2,16 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-use crate::formulae;
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OutdatedPackages {
     pub formulae: Vec<Package>,
     pub casks: Vec<Package>,
+}
+
+impl OutdatedPackages {
+    pub fn iter(&self) -> impl Iterator<Item = &Package> {
+        self.formulae.iter().chain(self.casks.iter())
+    }
 }
 
 impl From<&OutdatedPackages> for String {
