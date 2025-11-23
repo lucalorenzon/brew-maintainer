@@ -20,8 +20,8 @@ class BrewMaintainer < Formula
     error_log_path var/"log/brew-maintainer.err.log"
     working_dir var
     environment_variables(
-      HOME => Dir.home,
-      PATH => std_service_path_env
+      "HOME" => ENV.fetch("HOME"),
+      "PATH" => std_service_path_env
     )
   end
 
