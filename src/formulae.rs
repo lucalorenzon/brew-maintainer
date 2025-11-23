@@ -12,7 +12,7 @@ pub struct OutdatedPackages {
 
 impl From<&OutdatedPackages> for String {
     fn from(output: &OutdatedPackages) -> Self {
-        let formulae_str = output.formulae.iter().map(|p| format!("{\n}", p)).collect();
+        let formulae_str = output.formulae.iter().map(|p| format!("{}", p)).collect();
         formulae_str
     }
 }
@@ -34,9 +34,9 @@ pub struct Package {
 
 impl Display for Package {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
+        writeln!(
             f,
-            "{} => available: {} | installed: {} | pinned: {} | pinned-version: {:?}",
+            "\t - {} => available: {} | installed: {} | pinned: {} | pinned-version: {:?}",
             &self.name,
             &self.current_version,
             &self.installed_versions.join(", "),

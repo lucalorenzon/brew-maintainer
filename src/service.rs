@@ -43,7 +43,7 @@ pub fn run_maintenance<E: CommandExecutor>(brew_maintainer: &BrewMaintainer<E>) 
     let outdated_packages = brew_maintainer
         .find_outdated_packages()
         .context("\u{274c} Failed in finding outdated packages")?;
-    info!("outdated:packages: \n\t - {}", outdated_packages);
+    info!("outdated:packages: \n{}", outdated_packages);
     info!("\u{2705} brew outdated done");
     // let failed_packages = brew_maintainer
     //     .upgrade_packages_with_timeout(outdatated_packages, Duration::minutes(30))
