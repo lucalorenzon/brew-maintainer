@@ -18,6 +18,7 @@ fn main() -> Result<()> {
     let start_time = Local::now();
     info!("=== Brew Maintenance Started at {} ===>|", start_time);
     let command = BrewMaintainer::new(RealBrewCommand);
+
     match run_maintenance(&command) {
         Ok(_) => info!("|<============= Run complete."),
         Err(e) => info!("|<============= Run failed: {}", e),

@@ -20,6 +20,12 @@ impl<E: CommandExecutor> BrewMaintainer<E> {
             envs: self.executor.envs(),
         })
     }
+
+    pub fn find_outdated_packages(&self) -> Result<String, BrewError> {
+        self.executor.execute(&BrewCommand::Outdated {
+            envs: self.executor.envs(),
+        })
+    }
 }
 
 pub fn run_maintenance<E: CommandExecutor>(brew_maintainer: &BrewMaintainer<E>) -> Result<()> {
@@ -28,10 +34,11 @@ pub fn run_maintenance<E: CommandExecutor>(brew_maintainer: &BrewMaintainer<E>) 
         .context("\u{274c} Failed to update reference repositories")?;
     info!("output: {}", output);
     info!("\u{2705} brew update done");
-    // let outdatated_packages = brew_maintainer
-    //     .find_outdated_packages()
-    //     .context("\u{274c} Failed in finding outented packages")?;
-    // info!("\u{2705} brew outdated done");
+    let outdatated_packages = brew_maintainer
+        .find_outdated_packages()
+        .context("\u{274c} Failed in finding outented packages")?;
+    info!("outetaded:packages: {}", outdatated_packages);
+    info!("\u{2705} brew outdated done");
     // let failed_packages = brew_maintainer
     //     .upgrade_packages_with_timeout(outdatated_packages, Duration::minutes(30))
     //     .context("\u{274c} Failure occurred while upgrading packages")?;
